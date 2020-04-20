@@ -1,3 +1,12 @@
+"""
+Occupancy_calcs.py
+Maggie Jacoby 2020-04-19
+
+This code reads in the original occupancy files (per person) and generates hourly 
+occupancy probability transitions. Also plots the actual occpuancy data
+
+"""
+
 import os
 import sys
 import csv
