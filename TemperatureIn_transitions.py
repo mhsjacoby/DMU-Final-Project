@@ -2,6 +2,10 @@
 TemperatureIn_transitions.py
 Maggie Jacoby 2020-04-23
 
+This file reads in the output from matlab, must have column headings: Ti, Ti_prime, To, a
+and outputs the transition matrices from To,Ti -> To',Ti'
+Also outputs a file with the matrix indices and corrosponding temperature pairs
+
 """
 
 import os
@@ -89,12 +93,11 @@ class TiTransitionsCSV():
 
  
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        root_dir = sys.argv[1]
-    else:
-        root_dir = '/Users/maggie/Desktop/DMU_project_test/'
 
-    t = TiTransitionsCSV(root_dir)
+    root_dir = sys.argv[1] if len(sys.argv) > 1 else '/Users/maggie/Desktop/DMU_project_test/'
+
+
+    t = TiTransitionsCSV(root_dir, rf)
     t.main()
 
 
