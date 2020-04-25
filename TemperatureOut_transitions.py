@@ -2,7 +2,7 @@
 TemperatureOut_transitions.py
 Maggie Jacoby 2020-04-21
 
-This file takes an outdooe TMY3 type file and creates temperture transitions P(s'|s)
+This file takes an output as TMY3 type file and creates temperture transitions P(s'|s)
 transitions are created per hour, and output to csvs for each hour. 
 """
 
