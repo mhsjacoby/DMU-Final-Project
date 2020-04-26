@@ -27,14 +27,14 @@ import OccupancyCalcs as occ   # module that creates and plots occupancy data
 
 
 class ToTiTransitionsCSV():
-    def __init__(self, root_path, action, results_dir='data_from_simulink'):
+    def __init__(self, root_path, action, results_dir='data_from_simulink', rf='x'):
         self.root_dir = root_path
         self.results_file_path = os.path.join(self.root_dir, results_dir)
         self.action = action
+        self.rf_num=rf
         
     def read_T(self, file_p):
         df = pd.read_csv(file_p)
-        # column_names = ['Ti', 'Ti_prime', 'To', 'a']
         df.columns = ['Ti', 'Ti_prime', 'To', 'a']
         columns = ['Ti', 'Ti_prime', 'To']
         for col in columns:
@@ -72,24 +72,30 @@ class ToTiTransitionsCSV():
 
         return df_ext
 
-    def write_inds(self, inds_dict, fname, header):
-        csv_file = os.path.join(self.root_dir,  f'{fname}-inds-{self.rf_num}.csv')
-        np.savetxt(csv_file, np.column_stack(([v for v in inds_dict.values()], [k for k in inds_dict.keys()])), 
-                   fmt='%10.1f', delimiter=',', header=header, comments='')
+    # def write_inds(self, inds_dict, fname, header):
+    #     csv_file = os.path.join(self.root_dir,  f'{fname}-inds-{self.rf_num}.csv')
+    #     np.savetxt(csv_file, np.column_stack(([v for v in inds_dict.values()], [k for k in inds_dict.keys()])), 
+    #                fmt='%10.1f', delimiter=',', header=header, comments='')
      
-    
+
+    def read_in_results(self, f):
+        file_path = os.path.join(self.results_file_path, f)
+        print(f'> Reading from {file_path}...')
+        df = self.read_T(os.path.join(self.results_file_path, f))
+        print('df', len(df), df.columns)
+        return df
+
 
     def main(self):
         results_files = my.mylistdir(self.results_file_path, bit='.csv')
-        for f in results_files:
-            file_path = os.path.join(self.results_file_path, f)
-            print(f'> Reading from {file_path}...')
+        df1 = self.read_in_results(results_files[0])
+        
+        if len(results_files) > 1:
+            for f in results_files[1:]:
+                dfx = self.read_in_results(f)
+                df1 = pd.concat([df1, dfx], axis=0)
 
-
-
-
-        # self.rf_num = self.results_file.split('_')[-1].strip('.csv')
-        self.df = self.read_T(file_path)
+        self.df=df1
         self.TransitionMatrix = self.get_dist(self.df)
         self.len_df = len(self.TransitionMatrix)
 
@@ -111,10 +117,8 @@ class ToTransitionsCSV():
     
     def get_dist(self, df):
         all_H = df.Hour.unique()
-        self.minT = df['Temperature_degC'].min()
-        self.maxT = df['Temperature_degC'].max()
+        self.minT, self.maxT = df['Temperature_degC'].min(), df['Temperature_degC'].max()
         allT = [t for t in range(int(self.minT), int(self.maxT)+1)]
-        self.write_allT(allT)
         df['Tprime'] = df['Temperature_degC'].shift(-1)
         df = df.drop(df.tail(1).index)
         df = df[df['Hour'] == self.hour]
@@ -123,33 +127,33 @@ class ToTransitionsCSV():
         for index, row in df.iterrows():
             i, j = self.ind(row['Temperature_degC']), self.ind(row['Tprime'])
             transT[i,j] += 1
-        To_To = pd.DataFrame(data=transT, index=allT, columns=allT)
 
+        To_To = pd.DataFrame(data=transT, index=allT, columns=allT)
         To_To_normed = To_To.div(To_To.sum(axis=1), axis=0)
+
         return To_To_normed
         
-    def write_allT(self, allT):
-        T_ind = [self.ind(t) for t in allT]
-        store_dir = my.make_storage_directory(os.path.join(self.root_dir, 'Indices'))
-        csv_file = os.path.join(store_dir, f'temperature_indices.csv')
-        np.savetxt(csv_file, np.column_stack((T_ind, allT)), fmt='%10.1f', delimiter=',', header='index,temperature', comments='')
+    # def write_allT(self, allT):
+    #     T_ind = [self.ind(t) for t in allT]
+    #     store_dir = my.make_storage_directory(os.path.join(self.root_dir, 'Indices'))
+    #     csv_file = os.path.join(store_dir, f'temperature_indices.csv')
+    #     np.savetxt(csv_file, np.column_stack((T_ind, allT)), fmt='%10.1f', delimiter=',', header='index,temperature', comments='')
 
+    # def write_csv(self, dist_dict):
+    #     store_dir = my.make_storage_directory(os.path.join(self.root_dir, 'TransitionProbabilties', 'outdoorT'))
+    #     for h in dist_dict:       
+    #         csv_file = os.path.join(store_dir, f'To_{h[0:2]}.csv')
+    #         np.savetxt(csv_file, dist_dict[h], fmt='%10.5f', delimiter=',')
 
     def main(self):
         df = self.read_T(self.weather_file)
         self.T = self.get_dist(df)
 
-            # def write_csv(self, dist_dict):
-    #     store_dir = my.make_storage_directory(os.path.join(self.root_dir, 'TransitionProbabilties', 'outdoorT'))
-    #     for h in dist_dict:       
-    #         csv_file = os.path.join(store_dir, f'To_{h[0:2]}.csv')
-    #         np.savetxt(csv_file, dist_dict[h], fmt='%10.5f', delimiter=',')
+
         
 
 
-
 # Some general functions for file reading and writing, specific to transition functions
-
 def generate_ToTi(a):                       # Given the results file from simulink, create TiTo->Ti' transitions (by action)
     t = ToTiTransitionsCSV(root_dir, actions[a])
     t.main()
