@@ -30,20 +30,6 @@ class HomeData():
         self.write_dir = write
         self.home = h       # path.split('/')[-1].split('-')[-2]
         self.system = s     # path.split('/')[-1].split('-')[-1]
-    
-    
-    # def mylistdir(self, directory, bit='', end=True):
-    #     filelist = os.listdir(directory)
-    #     if end:
-    #         return [x for x in filelist if x.endswith(f'{bit}') and not x.startswith('.') and not 'Icon' in x]
-    #     else:
-    #          return [x for x in filelist if x.startswith(f'{bit}') and not x.startswith('.') and not 'Icon' in x]
-
-    # def make_storage_directory(self, target_dir):
-    #     if not os.path.exists(target_dir):
-    #         os.makedirs(target_dir)
-    #     return target_dir
-
 
 # reads in occupancy files and creates dfs for all occupants
 class HomeOccupancy(HomeData):
@@ -217,6 +203,8 @@ class PlotOcc(HomeData):
         self.plot_occ_all(dfs)
 
 
+#These don't run when file is imported
+##################################################################################
 if __name__ == '__main__':
     # write_path =  '/Users/maggie/Documents/Github/DMU-Final-Project'
     write_path =  '/Users/maggie/Desktop'

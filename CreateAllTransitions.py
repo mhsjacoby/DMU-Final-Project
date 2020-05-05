@@ -24,8 +24,6 @@ import MyFunctions as my        # Contains mylistidir and make_storage_directory
 import OccupancyCalcs as occ   # module that creates and plots occupancy data
 
 
-
-
 class ToTiTransitionsCSV():
     def __init__(self, root_path, action, results_dir='data_from_simulink', rf='x'):
         self.root_dir = root_path
@@ -59,30 +57,40 @@ class ToTiTransitionsCSV():
 
         for index, row in df.iterrows():
             i = pair_inds[(int(row.To), int(row.Ti))]
-            j = Ti_inds[(int(row.Ti_prime))]            
+            j = Ti_inds[(int(row.Ti_prime))] 
             transT[i,j] += 1
 
-        ToTi_Ti = pd.DataFrame(data=transT, index=pair_inds.keys(), columns=Ti_inds.keys())
-        normed_T = ToTi_Ti.div(ToTi_Ti.sum(axis=1), axis=0)
-        
-        df_ext = normed_T.copy(deep=True)
+        replacedT = self.impute_missing_T(transT)
+        ToTi_Ti = pd.DataFrame(data=replacedT, index=pair_inds.keys(), columns=Ti_inds.keys())
+        normedT = ToTi_Ti.div(ToTi_Ti.sum(axis=1), axis=0)
+
+        df_ext = normedT.copy(deep=True)
         for i in range(1, len(self.allTo)):
-            df_ext = pd.concat([df_ext, normed_T], axis=1, sort=False)
+            df_ext = pd.concat([df_ext, normedT], axis=1, sort=False)
         df_ext.index = df_ext.index.to_flat_index()
-
         return df_ext
-
-    # def write_inds(self, inds_dict, fname, header):
-    #     csv_file = os.path.join(self.root_dir,  f'{fname}-inds-{self.rf_num}.csv')
-    #     np.savetxt(csv_file, np.column_stack(([v for v in inds_dict.values()], [k for k in inds_dict.keys()])), 
-    #                fmt='%10.1f', delimiter=',', header=header, comments='')
      
+    def impute_missing_T(self, df):
+        missing = []
+        replaced_inds = []
+        for i, row in enumerate(df):
+            if row.sum() != 0:
+                saved_r = row
+            else:
+                try:
+                    df[i] = saved_r
+                    replaced_inds.append(i)
+                except NameError:
+                    missing.append(i)
+        for i in missing:
+            df[i] = saved_r
+        return df
+
 
     def read_in_results(self, f):
         file_path = os.path.join(self.results_file_path, f)
         print(f'> Reading from {file_path}...')
         df = self.read_T(os.path.join(self.results_file_path, f))
-        print('df', len(df), df.columns)
         return df
 
 
@@ -124,40 +132,25 @@ class ToTransitionsCSV():
         df = df[df['Hour'] == self.hour]
 
         transT = np.zeros((len(allT), len(allT)))
+        print('dims: ', len(allT), len(allT))
         for index, row in df.iterrows():
             i, j = self.ind(row['Temperature_degC']), self.ind(row['Tprime'])
-            transT[i,j] += 1
+            transT[i,j] += 1.0
 
         To_To = pd.DataFrame(data=transT, index=allT, columns=allT)
-        To_To_normed = To_To.div(To_To.sum(axis=1), axis=0)
-
+        To_To_normed = To_To.div(To_To.sum(axis=1), axis=0).fillna(value=0.0)
         return To_To_normed
-        
-    # def write_allT(self, allT):
-    #     T_ind = [self.ind(t) for t in allT]
-    #     store_dir = my.make_storage_directory(os.path.join(self.root_dir, 'Indices'))
-    #     csv_file = os.path.join(store_dir, f'temperature_indices.csv')
-    #     np.savetxt(csv_file, np.column_stack((T_ind, allT)), fmt='%10.1f', delimiter=',', header='index,temperature', comments='')
-
-    # def write_csv(self, dist_dict):
-    #     store_dir = my.make_storage_directory(os.path.join(self.root_dir, 'TransitionProbabilties', 'outdoorT'))
-    #     for h in dist_dict:       
-    #         csv_file = os.path.join(store_dir, f'To_{h[0:2]}.csv')
-    #         np.savetxt(csv_file, dist_dict[h], fmt='%10.5f', delimiter=',')
 
     def main(self):
         df = self.read_T(self.weather_file)
         self.T = self.get_dist(df)
 
 
-        
-
-
 # Some general functions for file reading and writing, specific to transition functions
-def generate_ToTi(a):                       # Given the results file from simulink, create TiTo->Ti' transitions (by action)
-    t = ToTiTransitionsCSV(root_dir, actions[a])
+def generate_ToTi(a, Rdir):                       # Given the results file from simulink, create TiTo->Ti' transitions (by action)
+    t = ToTiTransitionsCSV(Rdir, actions[a])
     t.main()
-    storage_directory = my.make_storage_directory(os.path.join(root_dir, 'TransitionProbabilties'))
+    # storage_directory = my.make_storage_directory(os.path.join(Rdir, 'TransitionProbabilties'))
     return t.TransitionMatrix, len(t.allTi), t.len_rfa
 
 
@@ -176,14 +169,7 @@ def combine_occ_data(h, occD, tempDF):
     full_df = pd.concat([df_givenH, df_givenA], axis = 0)           # Create full Occ inlcuded df
     return full_df
 
-
-
-        # def write_indices(pair, fname, header):
-    #     pair_inds = {i:x for i, x in enumerate(pair)}
-    #     f_store = make_storage_dir(os.path.join(root_dir, 'index_keys'))
-    #     csv_file = os.path.join(f_store,  f'{fname}.csv')
-    #     np.savetxt(csv_file, np.column_stack(([k for k in pair_inds.keys()], [v for v in pair_inds.values()])), fmt='%s', delimiter=',')
-
+    
 
 if __name__ == '__main__':
     root_dir = '/Users/maggie/Desktop/DMU_project_test/'            # Dicrectory to write to
@@ -200,9 +186,9 @@ if __name__ == '__main__':
     hours = [str(x).zfill(2) + ':00' for x in range(0,24)]          # 24 hours to use     
     actions = {0:0, 1:3500, 2:6000}                                 # Actions used by simulink
     
-    TT_0, L0, l0 = generate_ToTi(0)                             # Create ToTi->Ti' for each action
-    TT_1, L1, l1 = generate_ToTi(1)
-    TT_2, L2, l2 = generate_ToTi(2)
+    TT_0, L0, l0 = generate_ToTi(0, root_dir)                       # Create ToTi->Ti' for each action
+    TT_1, L1, l1 = generate_ToTi(1, root_dir)
+    TT_2, L2, l2 = generate_ToTi(2, root_dir)
 
     print(f'Total length of results file: {l0 + l1 + l2}, dimesions: {L0, L1, L2}')
     L = max(L0, L1, L2)
@@ -233,15 +219,17 @@ if __name__ == '__main__':
             to.T = to.T.set_index('nindex')                                     # Set indices to new inds
             TT_df = TT_df.set_index('nindex')
 
-            new_df = TT_df*to.T                                                 # Elementwise multiply the two new matrices together
+            new_df = TT_df*to.T       
             ToTiOcc_df = combine_occ_data(int(h[0:2]), occ_probs, new_df)
-            print(f'{len(ToTiOcc_df)}, {ToTiOcc_df.sum().sum()}, {ToTiOcc_df.sum().sum()/len(ToTiOcc_df)}')
             np_df = ToTiOcc_df.to_numpy()
+            print(f'action: {actions[TT[1]]}, hour: {h}, df nans: {ToTiOcc_df.isnull().sum().sum()},  Any numpy nans? (any number means no,"NaN" means yes): {np_df.sum()}')
+            
+
 
             actions_list_dfs.append(np_df)
         hours_list_lists.append(actions_list_dfs)
 
     final_df = np.asarray(hours_list_lists)
-    print('final lengths', len(final_df), len(final_df[0]), len(final_df[0][0]))
+    print('final lengths', len(final_df), len(final_df[0]), len(final_df[0][0]), final_df.sum())
 
-    np.save('/Users/maggie/Desktop/RF3_better.npy', final_df)                 # Save full output to a 4-dimensional numpy array
+    np.save('/Users/maggie/Desktop/TransitionMatrix_1.npy', final_df)                 # Save full output to a 4-dimensional numpy array
