@@ -3,6 +3,9 @@ CreateAllTransitions.py
 Maggie Jacoby 2020-04-25 
 update:2020-04-29 - write indices, save as sparse matrix 
 
+Action in this version is heater level (low, high, off)
+Occupancy transition matrix code is wrong
+
 This code combines the two temperature transition classes and imports the occupancy class
 Combines all results files to create full transitions
 When run alone this outputs a .npy file containing the full transition matrix
